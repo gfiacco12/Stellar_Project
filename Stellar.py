@@ -32,5 +32,9 @@ def star(Msolar, Lsolar, Teff, X, Z):
     k_B = 1.380658E-16 #boltzman constants
     m_H = 1.673534E-24 #mass hydrogen
     pi = np.pi
+    gamma=5/3
+    gamrat=gamma/(gamma-1)
+    tog_bf=0.01 #bound free opacity constant
+    g_ff=1.0 #free-free opacity gaunt factor
 
     
