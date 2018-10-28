@@ -11,7 +11,7 @@ from matplotlib import rc
 
 #Start of code
 #Inputs solar mass, solar luminosity, effective temperature, H fraction, metal fraction
-def star(Msolar, Lsolar, Teff, X, Z):
+def star():
     
     #define variables
     #ALL UNITS IN CGS
@@ -36,5 +36,34 @@ def star(Msolar, Lsolar, Teff, X, Z):
     gamrat=gamma/(gamma-1)
     tog_bf=0.01 #bound free opacity constant
     g_ff=1.0 #free-free opacity gaunt factor
-
     
+    #Next open up a file but we don't have one: should ask about it
+    
+    Msolar=input("Enter star mass (solar units):")
+    Lsolar=input("Enter star luminosity (solar units):")
+    Teff=input("Enter effective temperature:")
+
+    ###FIGURE THIS OUT###
+    #user inputs mass fraction values, runs through loop to calculate Y
+    X= input("Enter the mass fraction of hydrogen:")
+    Z=input("Enter the mass fraction of metals:")
+    Y = 1-X-Z #helium mass fraction
+    while Y < 0:
+        print("\n")
+        X= input("Enter the mass fraction of hydrogen:")
+        Z=input("Enter the mass fraction of metals:")
+        Y = 1-X-Z #helium mass fraction
+    
+    XCNO = Z/2 #mass frac of CNO = 50% fo Z
+    #Star mass, luminosity, radius
+    Ms = Msolar*Msun
+    Ls = Lsolar*Lsun
+    Rs = np.sqrt(Ls/(4*pi*sigma))/(Teff**2)
+    Rsolar = Rs/Rsun
+    
+    #start with small step size
+    delstar = -Rs/1000
+    #idrflg = size flag. 0 is initial surface step size
+    idrflg = 0
+        
+        
