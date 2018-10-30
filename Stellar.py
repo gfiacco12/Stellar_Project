@@ -65,5 +65,28 @@ def star():
     delstar = -Rs/1000
     #idrflg = size flag. 0 is initial surface step size
     idrflg = 0
+    
+    #mean molecular weight for complete ionization
+    mu = 1/((2*X)+(0.75*Y)+(0.5*Z))
+    
+    #delimiter between adiabatic convection and radiation
+    gamrat = gamma/(gamma-1)
+    
+    #initialize values at the surface. Outermost zone = 1
+    r1 = Rs
+    M_r1 = Ms
+    L_r1 = Ls
+    T1 = T0
+    P1 = P0
+    if P0 <= 0 or T0 <= 0:
+        rho1 = 0
+        kappa1 = 0
+        epsilon1 = 0
+    else:
+        #Is a subroutine necessary for python?
+        if ierr != 0:
+            break #Is this right?
+        
+        
         
         
