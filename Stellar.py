@@ -37,6 +37,9 @@ def star():
     tog_bf=0.01 #bound free opacity constant
     g_ff=1.0 #free-free opacity gaunt factor
     
+    def EOS(X,Z,XCNO,mu,P,T,rho,kappa,epslon,tog_bf,izone,ierr):
+        return()
+    
     #Next open up a file but we don't have one: should ask about it
     
     Msolar=input("Enter star mass (solar units):")
@@ -68,13 +71,7 @@ def star():
     
     #mean molecular weight for complete ionization
     mu = 1/((2*X)+(0.75*Y)+(0.5*Z))
-    
-    #delimiter between adiabatic convection and radiation
-    gamrat = gamma/(gamma-1)
-    
-    #initialize values at the surface. Outermost zone = 1
-    r1 = Rs
-    M_r1 = Ms
+        
     L_r1 = Ls
     T1 = T0
     P1 = P0
@@ -83,9 +80,15 @@ def star():
         kappa1 = 0
         epsilon1 = 0
     else:
-        #Is a subroutine necessary for python?
-        if ierr != 0:
-            break #Is this right?
+        EOS(X,Z,XCNO,mu,P(1),T(1),rho(1),kappa(1),epslon(1),tog_bf,1,ierr)
+
+        #Why is there a warning here?
+    
+    kPad = 0.3 #adiabatic gas law constant
+    irc = 0
+
+    
+
         
         
         
