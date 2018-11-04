@@ -7,13 +7,11 @@ Created on Tue Oct 23 16:09:31 2018
 #imports
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rc
-
-#Start of code
-#Inputs solar mass, solar luminosity, effective temperature, H fraction, metal fraction
-def star():
+from matplotlib import rc        
+        
+class Model:
     
-    #define variables
+    #these are class variables, shared by all instances
     #ALL UNITS IN CGS
     Nstarti = 10 #number of steps for starting equations
     Nstop = 999 #max number of steps
@@ -36,60 +34,92 @@ def star():
     gamrat=gamma/(gamma-1)
     tog_bf=0.01 #bound free opacity constant
     g_ff=1.0 #free-free opacity gaunt factor
+        
+    #constuctor, called when a new instance of a class is created
+    def __init__(self):
+        #these are instance variables, different for each instance
+        self.exampleB = 2
+        self.m_H = 1.673534E-24 #mass hydrogen
+
+        star()
+        return
     
-    def EOS(X,Z,XCNO,mu,P,T,rho,kappa,epslon,tog_bf,izone,ierr):
+    #makes sure all terminal inputs are converted to integers
+    def getInt(s):
+        return(int(input(s)))
+    
+    #EOS sub-function 
+    def EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, tog_bf, izone, ierr):
+        
+        oneo3 = 0.33333
+        twoo3 = 0.66667
+        
+        if T<0 or P<0:
+            Model.ierr = 1
+            print("Negative T or P, redo initial conditions. Problem in zone "+izone+" with conditions:"+T+'/n'+P)
+        
+        Prad = Model.a * T ** (4/3)
+        Pgas = P - Prad
+        rho = ((mu * Model.m_H) / Model.k_B) * (Pgas / T)
+        
+        if rho < 0:
+            Model.ierr = 1
+            print("Negative density, probably too high radiation pressure. Problem in zone "+izone+" with conditions:"+T+'/n'+P+'/n'+Prad+'/n'+Pgas+'/n'+rho)
+        
+        return()
+
+    #Beginning of actual stellar model function
+    def star():        
+        #Next open up a file but we don't have one: should ask about it        
+        Msolar = Model.getInt("Enter star mass (solar units):")
+        Lsolar = Model.getInt("Enter star luminosity (solar units):")
+        Teff = Model.getInt("Enter effective temperature:")
+    
+        #user inputs mass fraction values, runs through loop to calculate Y
+        while True:
+            X = Model.getInt("Enter the mass fraction of hydrogen:")
+            Z = Model.getInt("Enter the mass fraction of metals:")
+            Y = 1-X-Z #helium mass fraction
+            if Y < 0:
+                break
+        
+        XCNO = Z/2 #mass frac of CNO = 50% fo Z
+        #Star mass, luminosity, radius
+        Ms = Msolar * Model.Msun
+        Ls = Lsolar * Model.Lsun
+        Rs = np.sqrt(Ls / (4 * Model.pi * Model.sigma)) / (Teff**2)
+        Rsolar = Rs / Model.Rsun
+        
+        #start with small step size
+        delstar = -Rs / 1000
+        #idrflg = size flag. 0 is initial surface step size
+        idrflg = 0
+        
+        #mean molecular weight for complete ionization
+        mu = 1 / ((2 * X) + (0.75 * Y) + (0.5 * Z))
+          
+        r = [Rs]
+        M_r = [Ms]
+        L_r = [Ls]
+        T = [Model.T0]
+        P = [Model.P0]
+        rho = []
+        kappa = []
+        epslon = []
+        if Model.P0 <= 0 or Model.T0 <= 0:
+            rho = 0
+            kappa = 0
+            epslon = 0
+        else:
+            Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, Model.tog_bf, 1, Model.ierr)
+        
+        #Apply surface conditions to begin integration. Radiation transport in outermost zone: irc = 0.
+        #Arbitrary initial values for kPad and dlPdlT
+        ##dlPdlT = dlnP/dlnT##
+        
+        kPad = 0.3 #adiabatic gas law constant
+        irc = 0 
+        dlPdlT = [4.25]
         return()
     
-    #Next open up a file but we don't have one: should ask about it
-    
-    Msolar=input("Enter star mass (solar units):")
-    Lsolar=input("Enter star luminosity (solar units):")
-    Teff=input("Enter effective temperature:")
-
-    ###FIGURE THIS OUT###
-    #user inputs mass fraction values, runs through loop to calculate Y
-    X= input("Enter the mass fraction of hydrogen:")
-    Z=input("Enter the mass fraction of metals:")
-    Y = 1-X-Z #helium mass fraction
-    while Y < 0:
-        print("\n")
-        X= input("Enter the mass fraction of hydrogen:")
-        Z=input("Enter the mass fraction of metals:")
-        Y = 1-X-Z #helium mass fraction
-    
-    XCNO = Z/2 #mass frac of CNO = 50% fo Z
-    #Star mass, luminosity, radius
-    Ms = Msolar*Msun
-    Ls = Lsolar*Lsun
-    Rs = np.sqrt(Ls/(4*pi*sigma))/(Teff**2)
-    Rsolar = Rs/Rsun
-    
-    #start with small step size
-    delstar = -Rs/1000
-    #idrflg = size flag. 0 is initial surface step size
-    idrflg = 0
-    
-    #mean molecular weight for complete ionization
-    mu = 1/((2*X)+(0.75*Y)+(0.5*Z))
-        
-    L_r1 = Ls
-    T1 = T0
-    P1 = P0
-    if P0 <= 0 or T0 <= 0:
-        rho1 = 0
-        kappa1 = 0
-        epsilon1 = 0
-    else:
-        EOS(X,Z,XCNO,mu,P(1),T(1),rho(1),kappa(1),epslon(1),tog_bf,1,ierr)
-
-        #Why is there a warning here?
-    
-    kPad = 0.3 #adiabatic gas law constant
-    irc = 0
-
-    
-
-        
-        
-        
-        
+model = Model()
