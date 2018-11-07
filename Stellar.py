@@ -34,6 +34,7 @@ class Model:
     gamrat=gamma/(gamma-1)
     tog_bf=0.01 #bound free opacity constant
     g_ff=1.0 #free-free opacity gaunt factor
+    kpad = 0.3 #adiabatic gas law constant
         
     #constuctor, called when a new instance of a class is created
     def __init__(self):
@@ -50,7 +51,6 @@ class Model:
     
     #EOS sub-function 
     def EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, tog_bf, izone, ierr):
-        
         oneo3 = 0.33333
         twoo3 = 0.66667
         
@@ -65,9 +65,28 @@ class Model:
         if rho < 0:
             Model.ierr = 1
             print("Negative density, probably too high radiation pressure. Problem in zone "+izone+" with conditions:"+T+'/n'+P+'/n'+Prad+'/n'+Pgas+'/n'+rho)
-        
         return()
 
+    #Starmodel sub-function
+    def Starmodel(deltar, X, Z, mu, Rs, r_i, M_ri, L_ri, r, P_ip1, M_rip1, L_rip1, T_ip1, tog_bf, irc): 
+        ###WHY RENAME THESE??###
+        r = r_i + deltar
+        M_rip1 = M_ri
+        L_rip1 = L_ri
+        
+        #Radiative approximation
+        if irc == 0:
+            T_ip1 = ((Model.G * M_rip1 * Model.mu * Model.m_H) / (4.25 * Model.k_B)) * ((1/r) - (1/Rs))
+            A_bf = 4.34 * Z * (1 + X) / tog_bf
+            A_ff = 3.68 * Model.g_ff * (1 - Z) * (1 + X)
+            Afac = A_bf + A_ff
+            P_ip1 = np.sqrt((1/4.25) * (16 / (3 * Model.pi * Model.a * Model.c)) * ((Model.G * M_rip1) / L_rip1) * (Model.k_B / (Afac * Model.mu * Model.m_H))) * T_ip1**4.25
+        else:
+            #convective approximation
+            T_ip1 = ((Model.G * M_rip1 * Model.mu * Model.m_H) / Model.k_B) * ((1/r) - (1/Rs)) / Model.gamrat
+            P_ip1 = Model.kpad * T_ip1**Model.gamrat
+        return()
+    
     #Beginning of actual stellar model function
     def star():        
         #Next open up a file but we don't have one: should ask about it        
@@ -117,9 +136,11 @@ class Model:
         #Arbitrary initial values for kPad and dlPdlT
         ##dlPdlT = dlnP/dlnT##
         
-        kPad = 0.3 #adiabatic gas law constant
         irc = 0 
         dlPdlT = [4.25]
+        
+        ###Learn about DO LOOPS###
+        
         return()
     
 model = Model()
