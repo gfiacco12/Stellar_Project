@@ -13,7 +13,7 @@ class Model:
     
     #these are class variables, shared by all instances
     #ALL UNITS IN CGS
-    Nstarti = 10 #number of steps for starting equations
+    Nstart = 10 #number of steps for starting equations
     Nstop = 999 #max number of steps
     Igoof = -1 #final model condition flag
     ierr = 0 
@@ -69,7 +69,7 @@ class Model:
 
     #Starmodel sub-function
     def Starmodel(deltar, X, Z, mu, Rs, r_i, M_ri, L_ri, r, P_ip1, M_rip1, L_rip1, T_ip1, tog_bf, irc): 
-        ###WHY RENAME THESE??###
+
         r = r_i + deltar
         M_rip1 = M_ri
         L_rip1 = L_ri
@@ -139,7 +139,10 @@ class Model:
         irc = 0 
         dlPdlT = [4.25]
         
-        ###Learn about DO LOOPS###
+        for i in range(Model.Nstart):
+            ip1 = i + 1
+            Model.Starmodel(Model.deltar, X, Z, mu, Rs, r[i], M_r[i], L_r[i], r[ip1], P[ip1], M_r[ip1], L_r[ip1], T[ip1], Model.tog_bf, irc)
+            Model.EOS(X, Z, XCNO, mu, P[ip1], T[ip1], rho[ip1], kappa[ip1], epslon[ip1], Model.tog_bf, ip1, Model.ierr)
         
         return()
     
