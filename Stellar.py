@@ -24,7 +24,7 @@ class Model:
     Msun = 1.989E33 #mass of sun
     Lsun = 3.826E33 #sun luminosity
     sigma = 5.67E-5 #stefan boltzmann
-    c = 3E8 #speed of light
+    c = 3E10 #speed of light
     a = (4*sigma)/c #rad pressure constant
     G = 6.67259E-8 #grav constant
     k_B = 1.380658E-16 #boltzman constants
@@ -65,6 +65,28 @@ class Model:
         if rho < 0:
             Model.ierr = 1
             print("Negative density, probably too high radiation pressure. Problem in zone "+izone+" with conditions:"+T+'/n'+P+'/n'+Prad+'/n'+Pgas+'/n'+rho)
+       
+        #calculate opacity
+        Model.tog_bf = 2.8 * (rho * (1 + X)**0.20)
+        ##Double check this with the book##
+        #bound-free, free-free, e scattering opacities
+        k_bf = 4.34 / Model.tog_bf * Z * (1 + X) * rho /(T**3.5)
+        k_ff = 3.68 * Model.g_ff * (1 - Z)*(1 + X)*rho/(T**3.5)
+        k_e = 0.2 * (1 + X)
+        kappa = k_bf + k_ff + k_e
+        
+        #energy generation from pp chain and CNO
+        T6 = T * 1E-06
+        fx = 0.133 * X * np.sqrt((3 + X) * rho) / T6**1.5
+        fpp = 1 + fx*X
+        psipp = 1 + 1.412E8 * (1/X - 1)*np.exp(-49.98 * T6**(-oneo3))
+        Cpp = 1 + 0.0123 * (T6**oneo3) + 0.0109 * (T6**twoo3) + 0.000938 * T6
+        epspp = 2.38E6 * rho * X**2 * fpp * psipp * Cpp * T6**(-twoo3) * np.exp(-33.80 * T6**(-oneo3))
+        CCNO = 1 + 0.0027 * T6**(-oneo3) - 0.00778 * T6**(-twoo3) - 0.000149 * T6
+        epsCNO = 8.67E27 * rho * X * XCNO * CCNO * T6**(-twoo3) * np.exp(-152.28 * T6**(-oneo3))
+        ##HELP
+        epslon = epspp + epsCNO
+        
         return()
 
     #Starmodel sub-function
@@ -87,6 +109,28 @@ class Model:
             P_ip1 = Model.kpad * T_ip1**Model.gamrat
         return()
     
+    #Functions to calculate pressure, mass, luminosity, an temp gradients 
+    def dPdr(r, M_r, rho):
+        dPdr = -Model.G * rho * M_r / r**2 
+        return()
+    
+    def dMdr(r, rho):
+        dMdr = 4 * Model.pi * rho * r**2
+        return()
+    
+    def dLdr(r, rho, epslon):
+        dLdr = 4 * Model.pi * rho * epslon * r**2
+        return()
+    
+    def dTdr(r, M_r, L_r, T, rho, kappa, mu, irc):
+        #radiative temp gradient
+        if irc == 0:
+            dTdr = -(3 / (16 * Model.pi * Model.a * Model.c)) * kappa * (rho / (T**3)) * (L_r / r**2)
+        else:
+            #adiabatic convective gradient
+            dTdr = -1 / Model.gamrat * (Model.G * M_r /r**2) * (mu * Model.m_H / Model.k_B)
+        return()
+    
     #Beginning of actual stellar model function
     def star():        
         #Next open up a file but we don't have one: should ask about it        
@@ -100,6 +144,7 @@ class Model:
             Z = Model.getInt("Enter the mass fraction of metals:")
             Y = 1-X-Z #helium mass fraction
             if Y < 0:
+                print('X+Z must be <= 1. Reenter composition.')
                 break
         
         XCNO = Z/2 #mass frac of CNO = 50% fo Z
@@ -122,6 +167,7 @@ class Model:
         L_r = [Ls]
         T = [Model.T0]
         P = [Model.P0]
+        ##HELP PLEASE##
         rho = []
         kappa = []
         epslon = []
@@ -144,6 +190,39 @@ class Model:
             Model.Starmodel(Model.deltar, X, Z, mu, Rs, r[i], M_r[i], L_r[i], r[ip1], P[ip1], M_r[ip1], L_r[ip1], T[ip1], Model.tog_bf, irc)
             Model.EOS(X, Z, XCNO, mu, P[ip1], T[ip1], rho[ip1], kappa[ip1], epslon[ip1], Model.tog_bf, ip1, Model.ierr)
         
+            if Model.ierr != 0:
+                print('Values from the previous zone are:', r[i]/Rs, rho[1], M_r[i]/Ms, kappa[i], T[i], epslon[i], P[i], L_r[i]/Ls)
+
+            #Determine whether conduction happens in next zone
+            if i > 1:
+                dlPdlT[ip1] = np.log10(P[ip1]/P[i]) / np.log10(T[ip1]/T[i])
+            else:
+               dlPdlT[ip1] = dlPdlT[i] 
+            
+            if dlPdlT[ip1] < Model.gamrat:
+                irc = 1
+            else:
+                irc = 0
+                Model.kpad = (P[ip1]/T[ip1])**Model.gamrat
+            
+            #Check surface assumption of constant mass
+            deltaM = Model.deltar * Model.dMdr(r[ip1], rho[ip1])
+            M_r[ip1] = M_r[i] + deltaM
+            
+            if np.abs(deltaM) > 0.001*Ms:
+                print("The variation in mass has become larger than 0.001Ms. Leaving loop before Nstart was reached.")
+                if ip1 > 2:
+                    ip1 = ip1 - 1
+                    break #exits the loop early
+                else:
+                    continue #continues with the loop
+            
+        #Main integration loop
+        Nsrtp1 = ip1 + 1
+        for i in range(Model.Nstart, Model.Nstop):
+            im1 = i - 1
+            #next is RK4 method
+                
         return()
     
 model = Model()
