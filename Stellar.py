@@ -145,6 +145,7 @@ class Model:
         dfdr[1] = Model.dMdr(r, Model.rho)
         dfdr[2] = Model.dLdr(r, Model.rho, Model.epslon)
         dfdr[3] = Model.dTdr(r, M_r, L_r, T, Model.rho, Model.kappa, mu, irc)
+        
         return()
         
     #RUNGE sub-function 
@@ -158,27 +159,27 @@ class Model:
         for i in range(0,4):
             f_temp[i] = f_im1[i] + dr12 * dfdr[i]
             
-            Model.FUNDEQ(r12, f_temp, df1, irc, X, Z, XCNO, mu, izone, ierr)
-            if ierr != 0:
-            #RETURN ?
+        Model.FUNDEQ(r12, f_temp, df1, irc, X, Z, XCNO, mu, izone, ierr)
+        if ierr != 0:
+            return()
                 
         for i in range(0,4):
-            f_temp(i) = f_im1[i] + dr12 * df[i]
+            f_temp[i] = f_im1[i] + dr12 * df1[i]
             
-            Model.FUNDEQ(r12, f_temp, df2, irc, X, Z, XCNO, mu, izone, ierr)
-            if ierr != 0:
-            #RETURN ?
+        Model.FUNDEQ(r12, f_temp, df2, irc, X, Z, XCNO, mu, izone, ierr)
+        if ierr != 0:
+            return()
             
         for i in range(0,4):
             f_temp[i] = f_im1[i] + deltar*df2[i]
 
-            Model.FUNDEQ(r12, f_temp, df3, irc, X, Z, XCNO, mu, izone, ierr)
-            if ierr != 0:
-            #RETURN ?
+        Model.FUNDEQ(r12, f_temp, df3, irc, X, Z, XCNO, mu, izone, ierr)
+        if ierr != 0:
+            return()
             
         for i in range(0,4):
             f_i[i] = f_imm1[i] + dr16 * (dfdr[i] + 2 * df1[i] + 2 * df2[i] + df3[i])
-        #continue?    
+            
         return()
             
     #Beginning of actual stellar model function
@@ -269,31 +270,34 @@ class Model:
             
         #Main integration loop
         Nsrtp1 = ip1 + 1
+        #start RK4 routine
         for i in range(Model.Nstart, Model.Nstop):
             im1 = i - 1
             f_im1 = [P[im1], M_r[im1], L_r[im1], T[im1]]
             dfdr = [Model.dPdr(r[im1], M_r[im1], rho[im1]), Model.dMdr(r[im1], rho[im1]), Model.dLdr(r[im1], rho[im1], epslon[im1]), Model.dTdr(r[im1], M_r[im1], L_r[im1], T[im1], rho[im1], kappa[im1], mu, irc)]
             
-            Model.RUNGE(f_im1, dfdr, f_i, r_im1, deltar, irc, X, Z, XCNO, mu, izone, ierr)
+            Model.RUNGE(f_im1, dfdr, f_i, r[im1], deltar, irc, X, Z, XCNO, mu, izone, ierr)
             if ierr != 0:
                 print("The Problem occurred in the Runge-Kutta routine")
                 print("Values from the previous zone are: ", r/Rs, rho, M_r/Ms, kappa, T, epslon, P, L_r/Ls)
                 
             r[i] = r[im1] + deltar
             P[i] = f_i[0]
-            M_r = f_i[1]
-            L_r = f_i[2]
+            M_r[i] = f_i[1]
+            L_r[i] = f_i[2]
             T[i] = f_i[3]
             
+            #calculate density, opacity, energy generation rate
             Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, tog_bf, izone, ierr)
             if ierr != 0:
-                print("Values from the previous zone are: ", r(im1)/Rs, rho(im1), M_r(im1)/Ms, kappa(im1), T(im1), epslon(im1), P(im1), L_r(im1)/Ls)
+                print("Values from the previous zone are: ", r[im1]/Rs, rho[im1], M_r[im1]/Ms, kappa[im1], T[im1], epslon[im1], P[im1], L_r[im1]/Ls)
                 
-            d1Pd1T[i] = np.log(P[i] / P(im1)) / np.log(T[i] / T(im1))
+            dlPd1T[i] = np.log(P[i] / P[im1]) / np.log(T[i] / T[im1])
             if dlPdlT[i] < gamrat:
                 irc = 1
             else:
                 irc = 0
+                
             #checks for center
             if r[i] <= abs(deltar):
                 #end of the night
