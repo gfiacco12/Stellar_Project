@@ -125,12 +125,62 @@ class Model:
     def dTdr(r, M_r, L_r, T, rho, kappa, mu, irc):
         #radiative temp gradient
         if irc == 0:
-            dTdr = -(3 / (16 * Model.pi * Model.a * Model.c)) * kappa * (rho / (T**3)) * (L_r / r**2)
+            dTdr = -((3 / (16 * Model.pi * Model.a * Model.c)) * kappa * (rho / (T**3)) * (L_r / r**2))
         else:
             #adiabatic convective gradient
-            dTdr = -1 / Model.gamrat * (Model.G * M_r /r**2) * (mu * Model.m_H / Model.k_B)
+            dTdr = -(1 / Model.gamrat) * (Model.G * M_r /r**2) * (mu * Model.m_H / Model.k_B)
         return()
     
+        #FUNDEQ sub-function 
+    def FUNDEQ(r, f, dfdr, irc, X, Z, XCNO, mu, izone, ierr):
+        
+        P = f[0]
+        M_r = f[1]
+        L_r = f[2]
+        T = f[3]
+        
+        Model.EOS(X, Z, XCNO, mu, P, T, Model.rho, Model.kappa, Model.epslon, Model.tog_bf, izone, ierr)
+        
+        dfdr[0] = Model.dPdr(r, M_r, Model.rho)
+        dfdr[1] = Model.dMdr(r, Model.rho)
+        dfdr[2] = Model.dLdr(r, Model.rho, Model.epslon)
+        dfdr[3] = Model.dTdr(r, M_r, L_r, T, Model.rho, Model.kappa, mu, irc)
+        return()
+        
+    #RUNGE sub-function 
+    def RUNGE(f_im1, dfdr, f_i, r_im1, deltar, irc, X, Z, XCNO, mu, izone, ierr):
+        
+        dr12 = deltar / 2
+        dr16 = deltar / 6
+        r12 = r_im1 + dr12
+        r_i = r_im1 +deltar
+        
+        for i in range(0,4):
+            f_temp[i] = f_im1[i] + dr12 * dfdr[i]
+            
+            Model.FUNDEQ(r12, f_temp, df1, irc, X, Z, XCNO, mu, izone, ierr)
+            if ierr != 0:
+            #RETURN ?
+                
+        for i in range(0,4):
+            f_temp(i) = f_im1[i] + dr12 * df[i]
+            
+            Model.FUNDEQ(r12, f_temp, df2, irc, X, Z, XCNO, mu, izone, ierr)
+            if ierr != 0:
+            #RETURN ?
+            
+        for i in range(0,4):
+            f_temp[i] = f_im1[i] + deltar*df2[i]
+
+            Model.FUNDEQ(r12, f_temp, df3, irc, X, Z, XCNO, mu, izone, ierr)
+            if ierr != 0:
+            #RETURN ?
+            
+        for i in range(0,4):
+            f_i[i] = f_imm1[i] + dr16 * (dfdr[i] + 2 * df1[i] + 2 * df2[i] + df3[i])
+        #continue?    
+        return()
+            
     #Beginning of actual stellar model function
     def star():        
         #Next open up a file but we don't have one: should ask about it        
@@ -172,11 +222,11 @@ class Model:
         kappa = []
         epslon = []
         if Model.P0 <= 0 or Model.T0 <= 0:
-            rho = 0
-            kappa = 0
-            epslon = 0
+            rho[0] = 0
+            kappa[0] = 0
+            epslon[0] = 0
         else:
-            Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, Model.tog_bf, 1, Model.ierr)
+            Model.EOS(X, Z, XCNO, mu, P[0], T[0], rho[0], kappa[0], epslon[0], Model.tog_bf, 1, Model.ierr)
         
         #Apply surface conditions to begin integration. Radiation transport in outermost zone: irc = 0.
         #Arbitrary initial values for kPad and dlPdlT
@@ -221,6 +271,34 @@ class Model:
         Nsrtp1 = ip1 + 1
         for i in range(Model.Nstart, Model.Nstop):
             im1 = i - 1
+            f_im1 = [P[im1], M_r[im1], L_r[im1], T[im1]]
+            dfdr = [Model.dPdr(r[im1], M_r[im1], rho[im1]), Model.dMdr(r[im1], rho[im1]), Model.dLdr(r[im1], rho[im1], epslon[im1]), Model.dTdr(r[im1], M_r[im1], L_r[im1], T[im1], rho[im1], kappa[im1], mu, irc)]
+            
+            Model.RUNGE(f_im1, dfdr, f_i, r_im1, deltar, irc, X, Z, XCNO, mu, izone, ierr)
+            if ierr != 0:
+                print("The Problem occurred in the Runge-Kutta routine")
+                print("Values from the previous zone are: ", r/Rs, rho, M_r/Ms, kappa, T, epslon, P, L_r/Ls)
+                
+            r[i] = r[im1] + deltar
+            P[i] = f_i[0]
+            M_r = f_i[1]
+            L_r = f_i[2]
+            T[i] = f_i[3]
+            
+            Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, tog_bf, izone, ierr)
+            if ierr != 0:
+                print("Values from the previous zone are: ", r(im1)/Rs, rho(im1), M_r(im1)/Ms, kappa(im1), T(im1), epslon(im1), P(im1), L_r(im1)/Ls)
+                
+            d1Pd1T[i] = np.log(P[i] / P(im1)) / np.log(T[i] / T(im1))
+            if dlPdlT[i] < gamrat:
+                irc = 1
+            else:
+                irc = 0
+            #checks for center
+            if r[i] <= abs(deltar):
+                #end of the night
+                
+                
             #next is RK4 method
                 
         return()
