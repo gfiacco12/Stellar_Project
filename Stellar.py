@@ -92,7 +92,7 @@ class Model:
     #Starmodel sub-function
     def Starmodel(deltar, X, Z, mu, Rs, r_i, M_ri, L_ri, r, P_ip1, M_rip1, L_rip1, T_ip1, tog_bf, irc): 
 
-        r = r_i + deltar
+        r = r_i + Model.deltar
         M_rip1 = M_ri
         L_rip1 = L_ri
         
@@ -156,10 +156,17 @@ class Model:
         r12 = r_im1 + dr12
         r_i = r_im1 +deltar
         
+        f_temp = []
+        df1 = []
+        df2 = []
+        df3 = []
+        f_i = []
+        
         for i in range(0,4):
             f_temp[i] = f_im1[i] + dr12 * dfdr[i]
             
         Model.FUNDEQ(r12, f_temp, df1, irc, X, Z, XCNO, mu, izone, ierr)
+        
         if ierr != 0:
             return()
                 
@@ -167,6 +174,7 @@ class Model:
             f_temp[i] = f_im1[i] + dr12 * df1[i]
             
         Model.FUNDEQ(r12, f_temp, df2, irc, X, Z, XCNO, mu, izone, ierr)
+        
         if ierr != 0:
             return()
             
@@ -178,12 +186,13 @@ class Model:
             return()
             
         for i in range(0,4):
-            f_i[i] = f_imm1[i] + dr16 * (dfdr[i] + 2 * df1[i] + 2 * df2[i] + df3[i])
+            f_i[i] = f_im1[i] + dr16 * (dfdr[i] + 2 * df1[i] + 2 * df2[i] + df3[i])
             
         return()
             
     #Beginning of actual stellar model function
     def star():        
+        
         #Next open up a file but we don't have one: should ask about it        
         Msolar = Model.getInt("Enter star mass (solar units):")
         Lsolar = Model.getInt("Enter star luminosity (solar units):")
@@ -218,7 +227,7 @@ class Model:
         L_r = [Ls]
         T = [Model.T0]
         P = [Model.P0]
-        ##HELP PLEASE##
+
         rho = []
         kappa = []
         epslon = []
@@ -238,7 +247,7 @@ class Model:
         
         for i in range(Model.Nstart):
             ip1 = i + 1
-            Model.Starmodel(Model.deltar, X, Z, mu, Rs, r[i], M_r[i], L_r[i], r[ip1], P[ip1], M_r[ip1], L_r[ip1], T[ip1], Model.tog_bf, irc)
+            Model.Starmodel(deltar, X, Z, mu, Rs, r[i], M_r[i], L_r[i], r[ip1], P[ip1], M_r[ip1], L_r[ip1], T[ip1], Model.tog_bf, irc)
             Model.EOS(X, Z, XCNO, mu, P[ip1], T[ip1], rho[ip1], kappa[ip1], epslon[ip1], Model.tog_bf, ip1, Model.ierr)
         
             if Model.ierr != 0:
@@ -257,7 +266,7 @@ class Model:
                 Model.kpad = (P[ip1]/T[ip1])**Model.gamrat
             
             #Check surface assumption of constant mass
-            deltaM = Model.deltar * Model.dMdr(r[ip1], rho[ip1])
+            deltaM = deltar * Model.dMdr(r[ip1], rho[ip1])
             M_r[ip1] = M_r[i] + deltaM
             
             if np.abs(deltaM) > 0.001*Ms:
@@ -276,35 +285,94 @@ class Model:
             f_im1 = [P[im1], M_r[im1], L_r[im1], T[im1]]
             dfdr = [Model.dPdr(r[im1], M_r[im1], rho[im1]), Model.dMdr(r[im1], rho[im1]), Model.dLdr(r[im1], rho[im1], epslon[im1]), Model.dTdr(r[im1], M_r[im1], L_r[im1], T[im1], rho[im1], kappa[im1], mu, irc)]
             
-            Model.RUNGE(f_im1, dfdr, f_i, r[im1], deltar, irc, X, Z, XCNO, mu, izone, ierr)
-            if ierr != 0:
+            Model.RUNGE(f_im1, dfdr, Model.f_i, r[im1], deltar, irc, X, Z, XCNO, mu, izone, Model.ierr)
+           
+            if Model.ierr != 0:
                 print("The Problem occurred in the Runge-Kutta routine")
                 print("Values from the previous zone are: ", r/Rs, rho, M_r/Ms, kappa, T, epslon, P, L_r/Ls)
                 
             r[i] = r[im1] + deltar
-            P[i] = f_i[0]
-            M_r[i] = f_i[1]
-            L_r[i] = f_i[2]
-            T[i] = f_i[3]
+            P[i] = Model.f_i[0]
+            M_r[i] = Model.f_i[1]
+            L_r[i] = Model.f_i[2]
+            T[i] = Model.f_i[3]
             
             #calculate density, opacity, energy generation rate
-            Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, tog_bf, izone, ierr)
-            if ierr != 0:
+            Model.EOS(X, Z, XCNO, mu, P, T, rho, kappa, epslon, Model.tog_bf, izone, Model.ierr)
+            
+            if Model.ierr != 0:
                 print("Values from the previous zone are: ", r[im1]/Rs, rho[im1], M_r[im1]/Ms, kappa[im1], T[im1], epslon[im1], P[im1], L_r[im1]/Ls)
-                
-            dlPd1T[i] = np.log(P[i] / P[im1]) / np.log(T[i] / T[im1])
-            if dlPdlT[i] < gamrat:
+            
+            #check if convection is operating in next zone
+            dlPdlT[i] = np.log(P[i] / P[im1]) / np.log(T[i] / T[im1])
+            
+            if dlPdlT[i] < Model.gamrat:
                 irc = 1
+                
             else:
                 irc = 0
                 
             #checks for center
-            if r[i] <= abs(deltar):
-                #end of the night
+            if r[i] <= np.abs(deltar) and np.logical_or(L_r[i] >= 0.1*Ls, M_r >= 0.1*Ms):
+                Model.Igoof = 6
                 
+            elif L_r[i] <= 0:
+                Model.Igoof = 5
+                rhocor = M_r[i] / (4 / (3 * Model.pi * r[i]**3))
                 
-            #next is RK4 method
+                if M_r[i] != 0:
+                    epscor = L_r[i] / M_r[i]
+                    
+                else:
+                    epscor = 0
+                    
+                Pcore = P[i] + 2/(3 * Model.pi * Model.G * rhocor**2 * r[i]**2)
+                Tcore = Pcore * mu * Model.m_H / (rhocor * Model.k_B)
                 
+            elif M_r[i] <= 0:
+                Model.Igoof = 4
+                rhocor = 0
+                epscor = 0
+                Pcore = 0
+                Tcore = 0
+                
+            elif r[i] < 0.02*Rs and M_r[i] < 0.01*Ms and L_r[i] < 0.1*Ls:
+                rhocor = M_r[i] / (4 / (3 * Model.pi * r[i]**3))
+                rhomax = 10 * (rho[i] / rho[im1]) * rho[i]
+                epscor = L_r[i] / M_r[i]
+                Pcore = P[i] + 2 / (3 * Model.pi * Model.G *rhocor**2 * r[i]**2)
+                Tcore = Pcore * mu * Model.m_H / (rhocor * Model.k_B)
+                
+                if  rhocor < rho[i] or rhocor > rhomax:
+                    Model.Igoof = 1
+                    
+                elif epscor < epslon[i]:
+                    Model.Igoof = 2
+                
+                elif Tcore < T[i]:
+                    Model.Igoof = 3
+                    
+                else:
+                    Model.Igoof = 0
+            
+            if Model.Igoof != -1:
+                istop = i
+            
+        #Change step sizes 
+            if idrflg == 0 and M_r[i] < 0.99*Ms:
+                deltar = -Rs / 100
+                idrflg = 1
+            
+            if idrflg == 1 and deltar >= 0.5*r[i]:
+                deltar = -Rs / 5000
+                idrflg = 2
+            
+            istop = i
+            
+        #generate warnings for central conditions:
+        
+            rhocor = 
+            
         return()
     
 model = Model()
